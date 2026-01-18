@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   create-release:
@@ -13,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create_release.outputs.result }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
       - name: Checkout
@@ -35,7 +33,8 @@ jobs:
               name: `Hytale RU Loader v${{ steps.get_version.outputs.VERSION }}`,
               body: `## Что нового?
             
-            ...
+            - Автоматическая установка и удаление русской локализации
+            - Поддержка автообновлений
             
             ## Как использовать:
             
@@ -57,6 +56,7 @@ jobs:
     needs: create-release
     permissions:
       contents: write
+    environment: Tauri-Updater
     strategy:
       fail-fast: false
       matrix:
@@ -89,16 +89,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-            
+      
       - name: Install frontend dependencies
         run: npm ci
+      
+      - name: Build frontend
+        run: npm run build:frontend
         
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
