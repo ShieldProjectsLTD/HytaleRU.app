@@ -1,0 +1,166 @@
+/* general */
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+@font-face {
+    font-family: "LexendBold";
+    src: url("/src/assets/Lexend-Bold.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* global */
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  background-image: url('/src/assets/wallpaper.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #e6e6e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "LexendBold", sans-serif;
+}
+
+button {
+  padding: 12px 24px; 
+  margin: 4px 0; 
+  font-size: 16px; 
+  cursor: pointer; 
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-family: "LexendBold", sans-serif;
+  font-weight: normal;
+  color: #D0D7E1;
+}
+
+/* by id */
+#container {
+  width: 100%;
+  max-width: 80%; 
+  background-color: rgba(0, 0, 0, 0.45);
+  padding: 24px 32px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#container-btn {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#action-btn {
+  flex: 1;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  color: #D0D7E1;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: "LexendBold", sans-serif;
+  background: #4561A9;
+  background: -webkit-linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  background: -moz-linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  background: linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#4561A9", endColorstr="#4573AA", GradientType=1);
+  border: 2px solid #598AC3;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+#action-btn:hover {
+  background: #20578E;
+  background: -webkit-linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  background: -moz-linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  background: linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#20578E", endColorstr="#20578E", GradientType=1);
+  border: 2px solid #78A1FF;
+  border-radius: 6px;
+}
+
+#action-btn:disabled {
+  background: #2a2e38;
+  cursor: not-allowed;
+}
+
+#action-btn#unload {
+  background: #ff4d4d;
+}
+
+#folder-btn {
+  flex: 1;
+  width: 100%;
+  padding: 4px;
+  border-radius: 8px;
+  border: none;
+  color: #D0D7E1;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: "LexendBold", sans-serif;
+  background: #4561A9;
+  background: -webkit-linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  background: -moz-linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  background: linear-gradient(90deg, rgba(69, 97, 169, 1) 0%, rgba(70, 107, 170, 1) 50%, rgba(69, 115, 170, 1) 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#4561A9", endColorstr="#4573AA", GradientType=1);
+  opacity: 0.4;
+  border: 2px solid #598AC3;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+#folder-btn:hover {
+  background: #20578E;
+  background: -webkit-linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  background: -moz-linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  background: linear-gradient(90deg, rgba(32, 87, 142, 1) 0%, rgba(32, 87, 142, 1) 50%, rgba(32, 87, 142, 1) 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#20578E", endColorstr="#20578E", GradientType=1);
+  border: 2px solid #78A1FF;
+  border-radius: 6px;
+  opacity: 0.95;
+}
+
+#folder-btn:disabled {
+  background: #2a2e38;
+  cursor: not-allowed;
+}
+
+#folder-btn#unload {
+  background: #ff4d4d;
+}
+
+#p-status {
+  min-height: 24px;
+  margin: 0;
+  font-size: 14px;
+  color: #D0D7E1;
+  font-family: "LexendBold", sans-serif;
+}
+
+#p-gamepath {
+  min-height: 24px;
+  margin: 0;
+  font-size: 14px;
+  color: #D0D7E1;
+  font-family: "LexendBold", sans-serif;
+}
