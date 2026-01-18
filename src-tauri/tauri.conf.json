@@ -36,7 +36,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'",
+      "csp": "default-src 'self' https://github.com",
       "devCsp": null,
       "freezePrototype": true,
       "dangerousDisableAssetCspModification": false
@@ -66,9 +66,9 @@
         "installerIcon": "icons/icon.ico",
         "installMode": "currentUser"
       },
-      "allowDowngrades": true
+      "allowDowngrades": false
     },
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": "v1Compatible",
     "externalBin": []
   },
 
@@ -76,9 +76,8 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/ShieldProjectsLTD/HytaleRU.app/releases/latest/download/{{target}}-{{arch}}-{{current_version}}.json"
+        "https://github.com/ShieldProjectsLTD/HytaleRU.app/releases/latest/download/latest.json"
       ],
-      "dialog": true,
       "pubkey": "env://TAURI_SIGNING_PUBLIC_KEY"
     }
   }

@@ -27,6 +27,7 @@ const LANG_WORDLISTS: &[u8] =
 use std::fs;
 use std::path::PathBuf;
 // use tauri::Manager;
+use tauri_plugin_updater::UpdaterExt;
 
 
 fn get_config_path() -> Result<PathBuf, String> {
@@ -280,12 +281,58 @@ fn get_current_game_path() -> Result<String, String> {
     Ok(game.display().to_string())
 }
 
+#[tauri::command]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app.updater_builder().build().map_err(|e| e.to_string())?;
+    
+    match updater.check().await {
+        Ok(Some(update)) => {
+            println!("Доступно обновление: {}", update.version);
+            
+            // Автоматическая установка обновления
+            match update.download_and_install(|chunk_length, content_length| {
+                if let Some(total) = content_length {
+                    let progress = (chunk_length as f64 / total as f64) * 100.0;
+                    println!("Загружено: {:.2}%", progress);
+                }
+            }, || {
+                println!("Загрузка завершена, устанавливаем...");
+            }).await {
+                Ok(_) => {
+                    println!("Обновление установлено успешно!");
+                    Ok(())
+                },
+                Err(e) => Err(format!("Ошибка установки: {}", e))
+            }
+        },
+        Ok(None) => {
+            println!("Обновлений не найдено");
+            Ok(())
+        },
+        Err(e) => Err(format!("Ошибка проверки обновлений: {}", e))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            
+            // Проверка обновлений при запуске
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                
+                if let Err(e) = check_for_updates(app_handle).await {
+                    eprintln!("Ошибка при проверке обновлений: {}", e);
+                }
+            });
+            
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             install_ru_cmd,
             restore_original_cmd,
@@ -295,7 +342,8 @@ pub fn run() {
             load_custom_path,
             get_current_game_path,
             get_hytale_root_path,
-            validate_game_path  
+            validate_game_path,
+            check_for_updates
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

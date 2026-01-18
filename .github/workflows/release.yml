@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch: # allow run manually from UI
+  workflow_dispatch:
 
 jobs:
   create-release:
@@ -12,7 +12,8 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create_release.outputs.id }}
+      release_id: ${{ steps.create_release.outputs.result }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
       - name: Checkout
@@ -20,19 +21,21 @@ jobs:
         
       - name: Get version from tag
         id: get_version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: actions/github-script@v7
         with:
-          name: "Hytale RU Loader v${{ steps.get_version.outputs.VERSION }}"
-          body: |
-            ## Что нового?
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${{ steps.get_version.outputs.VERSION }}`,
+              name: `Hytale RU Loader v${{ steps.get_version.outputs.VERSION }}`,
+              body: `## Что нового?
             
-            - Автоматическая установка и удаление русской локализации
-            - Поддержка автообновлений
+            ...
             
             ## Как использовать:
             
@@ -44,28 +47,27 @@ jobs:
             ## Платформы:
             - Windows (x64)
             - macOS (x64/arm64)
-            - Linux (x64)
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+            - Linux (x64)`,
+              draft: false,
+              prerelease: false
+            })
+            return data.id
 
   build-tauri:
+    needs: create-release
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-latest'
-            target: 'x86_64-unknown-linux-gnu'
+          - platform: 'ubuntu-22.04'
+            args: ''
           - platform: 'macos-latest'
-            target: 'x86_64-apple-darwin'
-          - platform: 'macos-latest'
-            target: 'aarch64-apple-darwin'
+            args: '--target universal-apple-darwin'
           - platform: 'windows-latest'
-            target: 'x86_64-pc-windows-msvc'
+            args: ''
     
-    needs: [create-release]
     runs-on: ${{ matrix.platform }}
     
     steps:
@@ -76,42 +78,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
           
-      - name: Install Rust (stable)
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
           
       - name: Install dependencies (ubuntu)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
             
-      - name: Install dependencies (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          brew update
-          brew install openssl@3
-          
       - name: Install frontend dependencies
         run: npm ci
         
-      - name: Build the Tauri app
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          TAURI_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          includeReleaseBody: false
-          includeDebugSymbols: false
-          updaterJson: true
+          args: ${{ matrix.args }}
