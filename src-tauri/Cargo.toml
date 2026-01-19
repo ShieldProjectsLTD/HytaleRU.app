@@ -1,13 +1,13 @@
 [package]
 name = "hytale-ru-app"
-version = "1.0.5"
+version = "1.1.0"
 description = "HytaleRU.app"
 authors = ["AER"]
 license = "MIT"
 edition = "2021"
 
 [lib]
-name = "hytale_russia_lib"
+name = "hytaleru_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]

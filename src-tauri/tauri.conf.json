@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "HytaleRU.app",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "identifier": "com.aer.hytaleru-app",
+  "productName": "HytaleRU",
 
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:4312",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": ""
   },
@@ -45,7 +45,12 @@
 
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage", "msi", "app", "dmg"],
+    "targets": "all",
+    "publisher": "AER",
+    "copyright": "Copyright © 2026 AER. All rights reserved.",
+    "category": "Game",
+    "shortDescription": "Установщик русской локализации для Hytale",
+    "longDescription": "Автоматический установщик и менеджер русской локализации для игры Hytale. Поддерживает установку, обновление и удаление локализации.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -60,13 +65,61 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "allowDowngrades": false,
       "nsis": {
         "displayLanguageSelector": false,
         "languages": ["Russian"],
         "installerIcon": "icons/icon.ico",
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "headerImage": "icons/128x128.png",
+        "sidebarImage": "icons/128x128.png",
+        "compression": "lzma"
       },
-      "allowDowngrades": false
+      "wix": {
+        "language": ["ru-RU"],
+        "dialogImagePath": "icons/128x128.png",
+        "bannerPath": "icons/128x128.png"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0"
+        ],
+        "files": {},
+        "desktopTemplate": "hytaleru.desktop"
+      },
+      "appimage": {
+        "bundleMediaFramework": false,
+        "files": {}
+      }
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null,
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "background": null
+      }
     },
     "createUpdaterArtifacts": "v1Compatible",
     "externalBin": []

@@ -1,17 +1,17 @@
 {
   "name": "hytaleru-app",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "vite",
+    "tauri": "tauri dev",
     "build": "tauri build",
     "build:frontend": "vite build",
     "build:windows": "tauri build --target x86_64-pc-windows-msvc",
     "build:mac": "tauri build --target universal-apple-darwin",
     "build:linux": "tauri build --target x86_64-unknown-linux-gnu",
-    "preview": "tauri build --debug",
-    "tauri": "tauri"
+    "preview": "tauri build --debug"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

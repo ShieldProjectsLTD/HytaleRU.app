@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Hytale RU
+Comment=Установщик русской локализации для Hytale
+Exec=hytale-ru-app
+Icon=hytaleru
+Terminal=false
+Categories=Game;Utility;
+Keywords=hytale;russian;локализация;игры;
+StartupNotify=true
