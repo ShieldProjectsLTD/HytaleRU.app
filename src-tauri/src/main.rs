@@ -38,7 +38,7 @@ fn save_custom_path(path: String) -> Result<(), String> {
     let game_path = root.join("install/release/package/game/latest");
 
     if !game_path.exists() {
-        return Err("Папка игры Hytale не найдена".into());
+        return Err("Папка Hytale не найдена".into());
     }
 
     // 4. Проверяем exe
@@ -67,7 +67,7 @@ fn validate_custom_path(path: String) -> Result<String, String> {
 
     let game_path = root.join("install/release/package/game/latest");
     if !game_path.exists() {
-        return Err("Папка игры Hytale не найдена".into());
+        return Err("Папка Hytale не найдена".into());
     }
 
     let exe_path = game_path.join("Client/HytaleClient.exe");
@@ -105,7 +105,7 @@ fn get_saved_path() -> Result<Option<String>, String> {
 #[tauri::command]
 fn check_ru_installed(path: String) -> Result<bool, String> {
     let root = PathBuf::from(&path);
-    let ru_file = root.join("install/release/package/game/latest/Client/RussianLanguageFile.txt"); // пример
+    let ru_file = root.join("install/release/package/game/latest/Client/Data/Shared/Language/ru-RU/client.lang");
     Ok(ru_file.exists())
 }
 
