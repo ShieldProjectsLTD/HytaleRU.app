@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.local
 path.txt
+.cursor/worktrees.json
+/.cursor
+.cursor/*
