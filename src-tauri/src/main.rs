@@ -75,10 +75,8 @@ fn validate_custom_path(path: String) -> Result<String, String> {
         return Err("Файл HytaleClient.exe не найден".into());
     }
 
-    // Сохраняем путь в path.txt рядом с приложением
-    if let Ok(exe_dir) = std::env::current_exe() {
-        let app_dir = exe_dir.parent().unwrap_or(&exe_dir);
-        let path_file = app_dir.join("path.txt");
+    // Сохраняем путь в path.txt (dev: корень проекта, prod: папка приложения)
+    if let Ok(path_file) = crate::gamepath::get_path_file() {
         let _ = fs::write(path_file, root.display().to_string());
     }
 
@@ -87,17 +85,14 @@ fn validate_custom_path(path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn get_saved_path() -> Result<Option<String>, String> {
-    if let Ok(exe_dir) = std::env::current_exe() {
-        let app_dir = exe_dir.parent().unwrap_or(&exe_dir);
-        let path_file = app_dir.join("path.txt");
-        if path_file.exists() {
-            let s = fs::read_to_string(path_file).map_err(|e| e.to_string())?;
-            let trimmed = s.trim().to_string();
-            if trimmed.is_empty() {
-                return Ok(None);
-            }
-            return Ok(Some(trimmed));
+    let path_file = crate::gamepath::get_path_file()?;
+    if path_file.exists() {
+        let s = fs::read_to_string(path_file).map_err(|e| e.to_string())?;
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() {
+            return Ok(None);
         }
+        return Ok(Some(trimmed));
     }
     Ok(None)
 }
@@ -107,6 +102,26 @@ fn check_ru_installed(path: String) -> Result<bool, String> {
     let root = PathBuf::from(&path);
     let ru_file = root.join("install/release/package/game/latest/Client/Data/Shared/Language/ru-RU/client.lang");
     Ok(ru_file.exists())
+}
+
+#[tauri::command]
+fn find_game_automatically() -> Result<Option<String>, String> {
+    // Сначала проверяем сохраненный путь
+    if let Ok(Some(saved)) = get_saved_path() {
+        if let Ok(validated) = validate_custom_path(saved.clone()) {
+            return Ok(Some(validated));
+        }
+    }
+    
+    // Пытаемся найти игру автоматически
+    match crate::gamepath::get_default_game_dir() {
+        Ok(game_path) => {
+            // Находим корень Hytale из пути к игре
+            let root = crate::gamepath::get_hytale_root_from_path(&game_path);
+            Ok(Some(root.display().to_string()))
+        }
+        Err(_) => Ok(None)
+    }
 }
 
 
@@ -140,6 +155,7 @@ fn main() {
             validate_custom_path,
             check_ru_installed,
             get_saved_path,
+            find_game_automatically,
 
             check_for_updates
         ])

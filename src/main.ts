@@ -16,9 +16,27 @@ async function init() {
       await validateAndSetPath(saved);
     } else {
       statusText.textContent = "Ищем игру...";
+      updateUIStatus();
+      
+      // Пытаемся найти игру автоматически
+      try {
+        const found = await invoke<string | null>("find_game_automatically");
+        if (found) {
+          await validateAndSetPath(found);
+        } else {
+          statusText.textContent = "Игра не найдена. Выберите папку вручную";
+          updateUIStatus();
+        }
+      } catch (err) {
+        console.error("Ошибка при автоматическом поиске:", err);
+        statusText.textContent = "Игра не найдена. Выберите папку вручную";
+        updateUIStatus();
+      }
     }
-  } catch {
-    statusText.textContent = "Катч1";
+  } catch (err) {
+    console.error("Ошибка при загрузке сохраненного пути:", err);
+    statusText.textContent = "Выберите папку Hytale";
+    updateUIStatus();
   }
 }
 
@@ -57,10 +75,14 @@ function updateUIStatus() {
     actionBtn.disabled = true;
     actionBtn.textContent = "Выберите папку Hytale";
     statusText.style.color = "red";
+    // Высвечиваем кнопку "Указать игру" когда игра не найдена
+    folderBtn.style.opacity = "1.0";
   } else {
     actionBtn.disabled = false;
     actionBtn.textContent = ruInstalled ? "Удалить русский язык" : "Установить русский язык";
     statusText.style.color = "limegreen";
+    // Возвращаем обычную прозрачность когда игра найдена
+    folderBtn.style.opacity = "0.4";
   }
 }
 
@@ -74,16 +96,6 @@ async function selectGamePath() {
     console.error(err);
   }
 }
-
-// async function checkStatus() {
-//   try {
-//     ruInstalled = await invoke<boolean>("check_ru_exists");
-//   } catch {
-//     ruInstalled = false;
-//   }
-
-//   updateUIStatus();
-// }
 
 folderBtn.addEventListener("click", selectGamePath);
 actionBtn.addEventListener("click", async () => {
