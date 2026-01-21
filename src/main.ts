@@ -1,10 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 const actionBtn = document.getElementById("action-btn") as HTMLButtonElement;
 const folderBtn = document.getElementById("folder-btn") as HTMLButtonElement;
-const statusText = document.getElementById("p-status") as HTMLParagraphElement;
-const gamePathText = document.getElementById("p-gamepath") as HTMLParagraphElement;
+const gamePathTooltip = document.getElementById("gamepath-tooltip") as HTMLSpanElement;
+const gamePathIconBtn = document.getElementById("gamepath-icon-btn") as HTMLButtonElement;
+const toastContainer = document.getElementById("toast-container") as HTMLDivElement;
 
 let validPath: string | null = null;
 let ruInstalled = false;
@@ -15,7 +17,6 @@ async function init() {
     if (saved) {
       await validateAndSetPath(saved);
     } else {
-      statusText.textContent = "Ищем игру...";
       updateUIStatus();
       
       // Пытаемся найти игру автоматически
@@ -24,18 +25,18 @@ async function init() {
         if (found) {
           await validateAndSetPath(found);
         } else {
-          statusText.textContent = "Игра не найдена. Выберите папку вручную";
+          showToast("Путь не найден", "status-error");
           updateUIStatus();
         }
       } catch (err) {
         console.error("Ошибка при автоматическом поиске:", err);
-        statusText.textContent = "Игра не найдена. Выберите папку вручную";
+        showToast("Путь не найден", "status-error");
         updateUIStatus();
       }
     }
   } catch (err) {
     console.error("Ошибка при загрузке сохраненного пути:", err);
-    statusText.textContent = "Выберите папку Hytale";
+    showToast("Путь не найден", "status-error");
     updateUIStatus();
   }
 }
@@ -48,11 +49,15 @@ async function validateAndSetPath(path: string) {
 
     ruInstalled = await invoke<boolean>("check_ru_installed", { path: validPath });
 
-    statusText.textContent = ruInstalled ? "Русский язык установлен ✓" : "Русский язык не установлен";
+    if (ruInstalled) {
+      showToast("Русский язык установлен", "status-success");
+    } else {
+      showToast("Русский язык не установлен", "status-neutral");
+    }
   } catch (err) {
     validPath = null;
     ruInstalled = false;
-    statusText.textContent = String(err);
+    showToast("Путь не найден", "status-error");
   }
 
   updateGamePathDisplay();
@@ -67,21 +72,45 @@ function cutToHytaleRoot(path: string): string {
 }
 
 function updateGamePathDisplay() {
-  gamePathText.textContent = validPath ? `Путь: ${validPath}` : "Путь: не выбран";
+  gamePathTooltip.textContent = validPath || "Путь не выбран";
+  const gamePathContainer = document.getElementById("gamepath-container") as HTMLDivElement;
+  if (validPath) {
+    gamePathContainer.style.display = "flex";
+  } else {
+    gamePathContainer.style.display = "none";
+  }
+}
+
+function showToast(text: string, className: string) {
+  const toast = document.createElement("div");
+  toast.className = `toast ${className}`;
+  toast.textContent = text;
+  
+  toastContainer.appendChild(toast);
+  
+  // Анимация появления
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+  
+  // Автоматическое скрытие через 5 секунд
+  setTimeout(() => {
+    toast.classList.remove("show");
+    toast.classList.add("hide");
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 5000);
 }
 
 function updateUIStatus() {
   if (!validPath) {
     actionBtn.disabled = true;
     actionBtn.textContent = "Выберите папку Hytale";
-    statusText.style.color = "red";
-    // Высвечиваем кнопку "Указать игру" когда игра не найдена
     folderBtn.style.opacity = "1.0";
   } else {
     actionBtn.disabled = false;
     actionBtn.textContent = ruInstalled ? "Удалить русский язык" : "Установить русский язык";
-    statusText.style.color = "limegreen";
-    // Возвращаем обычную прозрачность когда игра найдена
     folderBtn.style.opacity = "0.4";
   }
 }
@@ -97,6 +126,17 @@ async function selectGamePath() {
   }
 }
 
+async function openGamePath() {
+  if (!validPath) return;
+  try {
+    await openPath(validPath);
+  } catch (err) {
+    console.error("Ошибка при открытии проводника:", err);
+    showToast("Не удалось открыть проводник", "status-error");
+  }
+}
+
+gamePathIconBtn.addEventListener("click", openGamePath);
 folderBtn.addEventListener("click", selectGamePath);
 actionBtn.addEventListener("click", async () => {
   if (!validPath) return;
@@ -106,17 +146,17 @@ actionBtn.addEventListener("click", async () => {
     if (ruInstalled) {
       await invoke("remove_ru_cmd");
       await invoke("restore_original_cmd");
-      statusText.textContent = "Русский язык удалён";
+      showToast("Удалён русский язык", "status-neutral");
     } else {
       await invoke("install_ru_cmd");
-      statusText.textContent = "Русский язык установлен";
+      showToast("Русский язык установлен", "status-success");
     }
 
     // После действия проверяем ещё раз
     ruInstalled = await invoke<boolean>("check_ru_installed", { path: validPath });
     updateUIStatus();
   } catch (err) {
-    statusText.textContent = `Ошибка: ${err}`;
+    showToast(`Ошибка: ${err}`, "status-error");
   } finally {
     actionBtn.disabled = false;
   }
