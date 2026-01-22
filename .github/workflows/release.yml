@@ -104,4 +104,40 @@ jobs:
           CI: true
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}          
+          args: ${{ matrix.args }}
+
+  generate-latestjson:
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install tauri-latest-json
+        run: cargo install tauri-latest-json
+
+      - name: Generate latest.json
+        run: |
+          # Create private key file
+          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > private_key.pem
+
+          # Generate latest.json
+          tauri-latest-json \
+            --repo-owner ShieldProjectsLTD \
+            --repo-name HytaleRU \
+            --private-key-path private_key.pem \
+            --private-key-password ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+          # Upload latest.json to release
+          gh release upload ${{ needs.create-release.outputs.release_id }} latest.json \
+            --clobber
+
+          # Cleanup
+          rm private_key.pem
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          

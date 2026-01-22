@@ -5,7 +5,7 @@ mod updater;
 mod localization;
 mod gamepath;
 
-use updater::check_for_updates;
+use updater::{check_for_updates, install_update};
 use hytaleru_lib::save_to_config;
 use hytaleru_lib::load_from_config;
 use hytaleru_lib::remove_config;
@@ -141,7 +141,8 @@ fn main() {
             get_saved_path,
             find_game_automatically,
 
-            check_for_updates
+            check_for_updates,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
