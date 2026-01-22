@@ -165,7 +165,7 @@ h1 {
 .toast {
   padding: 12px 20px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: "LexendBold", sans-serif;
   color: var(--color-text);
   background-color: rgba(0, 0, 0, 0.85);

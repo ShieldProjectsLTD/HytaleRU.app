@@ -1,6 +1,6 @@
 [package]
 name = "hytale-ru-app"
-version = "1.1.0-24"
+version = "1.1.0-26"
 description = "HytaleRU.app"
 authors = ["AER"]
 license = "MIT"
