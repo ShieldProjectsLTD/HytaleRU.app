@@ -1,29 +1,19 @@
 use std::path::{Path, PathBuf};
-#[allow(unused_imports)]
 use std::fs;
 
-use crate::{
-    load_from_config,
-    remove_config,
-};
+use crate::{load_from_config, remove_config};
 
-// Получает путь к path.txt в зависимости от режима (dev/prod)
 pub fn get_path_file() -> Result<PathBuf, String> {
     let exe_path = std::env::current_exe()
         .map_err(|_| "Не удалось получить путь к исполняемому файлу")?;
     
-    // В dev режиме исполняемый файл находится в src-tauri/target/debug/
-    // Проверяем наличие src-tauri в родительских директориях от exe
     let mut check_dir = exe_path.parent()
         .ok_or("Не удалось получить папку исполняемого файла")?
         .to_path_buf();
     
-    // Поднимаемся вверх по дереву директорий, ища src-tauri
     for _ in 0..10 {
         let src_tauri = check_dir.join("src-tauri");
         if src_tauri.exists() && src_tauri.is_dir() {
-            // Нашли src-tauri, значит это dev режим
-            // Корневая папка проекта - это директория, содержащая src-tauri
             return Ok(check_dir.join("path.txt"));
         }
         
@@ -34,9 +24,8 @@ pub fn get_path_file() -> Result<PathBuf, String> {
         }
     }
     
-    // Если не нашли src-tauri, значит это prod режим
-    // Используем папку рядом с исполняемым файлом
-    let app_dir = exe_path.parent().ok_or("Не удалось получить папку приложения")?;
+    let app_dir = exe_path.parent()
+        .ok_or("Не удалось получить папку приложения")?;
     Ok(app_dir.join("path.txt"))
 }
 
@@ -64,7 +53,6 @@ fn build_game_path(root: &Path) -> PathBuf {
 pub fn get_default_game_dir() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
-        // Сначала проверяем стандартное место
         if let Ok(appdata) = std::env::var("APPDATA") {
             let root = PathBuf::from(appdata).join("Hytale");
             let game = build_game_path(&root);
@@ -73,7 +61,6 @@ pub fn get_default_game_dir() -> Result<PathBuf, String> {
             }
         }
         
-        // Если не найдено, сканируем все диски
         scan_all_drives()
     }
 
@@ -115,17 +102,27 @@ pub fn get_hytale_root_from_path(path: &PathBuf) -> PathBuf {
 
 #[cfg(target_os = "windows")]
 fn scan_all_drives() -> Result<PathBuf, String> {
-    // Получаем все доступные диски
+    if let Ok(system_drive) = std::env::var("SystemDrive") {
+        let drive_path = PathBuf::from(&system_drive);
+        if let Ok(found) = search_hytale_on_drive(&drive_path) {
+            return Ok(found);
+        }
+    }
+    
     for drive_letter in b'A'..=b'Z' {
         let drive = format!("{}:\\", drive_letter as char);
         let drive_path = PathBuf::from(&drive);
         
-        // Проверяем существование диска
+        if let Ok(system_drive) = std::env::var("SystemDrive") {
+            if drive_path.starts_with(&system_drive) {
+                continue;
+            }
+        }
+        
         if !drive_path.exists() {
             continue;
         }
         
-        // Ищем папку Hytale на этом диске
         if let Ok(found) = search_hytale_on_drive(&drive_path) {
             return Ok(found);
         }
@@ -136,12 +133,12 @@ fn scan_all_drives() -> Result<PathBuf, String> {
 
 #[cfg(target_os = "windows")]
 fn search_hytale_on_drive(drive: &Path) -> Result<PathBuf, String> {
-    // Проверяем стандартные места на диске
     let possible_paths = vec![
-        drive.join("Users").join("AppData").join("Roaming").join("Hytale"),
+        drive.join("Users").join(std::env::var("USERNAME").unwrap_or_default()).join("AppData").join("Roaming").join("Hytale"),
         drive.join("ProgramData").join("Hytale"),
-        drive.join("Hytale"),
         drive.join("Games").join("Hytale"),
+        drive.join("Hytale"),
+        
         drive.join("Program Files").join("Hytale"),
         drive.join("Program Files (x86)").join("Hytale"),
     ];
@@ -155,20 +152,17 @@ fn search_hytale_on_drive(drive: &Path) -> Result<PathBuf, String> {
         }
     }
     
-    // Проверяем только первый уровень пользовательских папок для ускорения
     let users_dir = drive.join("Users");
     if users_dir.exists() {
         if let Ok(entries) = fs::read_dir(&users_dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let user_path = entry.path();
-                    if user_path.is_dir() {
-                        let hytale_path = user_path.join("AppData").join("Roaming").join("Hytale");
-                        if hytale_path.exists() {
-                            let game = build_game_path(&hytale_path);
-                            if game.exists() {
-                                return Ok(game);
-                            }
+            for entry in entries.flatten() {
+                let user_path = entry.path();
+                if user_path.is_dir() {
+                    let hytale_path = user_path.join("AppData").join("Roaming").join("Hytale");
+                    if hytale_path.exists() {
+                        let game = build_game_path(&hytale_path);
+                        if game.exists() {
+                            return Ok(game);
                         }
                     }
                 }
@@ -178,4 +172,3 @@ fn search_hytale_on_drive(drive: &Path) -> Result<PathBuf, String> {
     
     Err("Hytale не найден на этом диске".to_string())
 }
-

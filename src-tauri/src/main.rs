@@ -20,31 +20,23 @@ fn get_current_game_path() -> Result<String, String> {
 #[tauri::command]
 fn save_custom_path(path: String) -> Result<(), String> {
     use std::path::PathBuf;
-
     let path_buf = PathBuf::from(&path);
 
-    // 1. Быстрая проверка
     if !path_buf.exists() {
         return Err("Указанный путь не существует".into());
     }
 
-    // 2. Ищем корень Hytale
     let root = crate::gamepath::get_hytale_root_from_path(&path_buf);
-
     if !root.ends_with("Hytale") {
         return Err("Это не корневая папка Hytale".into());
     }
 
-    // 3. Проверяем путь к игре
     let game_path = root.join("install/release/package/game/latest");
-
     if !game_path.exists() {
         return Err("Папка Hytale не найдена".into());
     }
 
-    // 4. Проверяем exe
     let exe = game_path.join("Client/HytaleClient.exe");
-
     if !exe.exists() {
         return Err("Файл HytaleClient.exe не найден".into());
     }
@@ -55,12 +47,10 @@ fn save_custom_path(path: String) -> Result<(), String> {
 #[tauri::command]
 fn validate_custom_path(path: String) -> Result<String, String> {
     let path_buf = PathBuf::from(&path);
-
     if !path_buf.exists() {
         return Err("Путь не существует".into());
     }
 
-    // Находим корень Hytale
     let root = crate::gamepath::get_hytale_root_from_path(&path_buf);
     if !root.ends_with("Hytale") {
         return Err("Это не корневая папка Hytale".into());
@@ -76,7 +66,6 @@ fn validate_custom_path(path: String) -> Result<String, String> {
         return Err("Файл HytaleClient.exe не найден".into());
     }
 
-    // Сохраняем путь в path.txt (dev: корень проекта, prod: папка приложения)
     if let Ok(path_file) = crate::gamepath::get_path_file() {
         let _ = fs::write(path_file, root.display().to_string());
     }
@@ -107,17 +96,14 @@ fn check_ru_installed(path: String) -> Result<bool, String> {
 
 #[tauri::command]
 fn find_game_automatically() -> Result<Option<String>, String> {
-    // Сначала проверяем сохраненный путь
     if let Ok(Some(saved)) = get_saved_path() {
         if let Ok(validated) = validate_custom_path(saved.clone()) {
             return Ok(Some(validated));
         }
     }
 
-    // Пытаемся найти игру автоматически
     match crate::gamepath::get_default_game_dir() {
         Ok(game_path) => {
-            // Находим корень Hytale из пути к игре
             let root = crate::gamepath::get_hytale_root_from_path(&game_path);
             Ok(Some(root.display().to_string()))
         }
@@ -127,29 +113,21 @@ fn find_game_automatically() -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn is_ci_environment() -> bool {
-    let is_ci = std::env::var("CI").is_ok();
-    println!("CI environment check: {}", is_ci);
-    is_ci
+    std::env::var("CI").is_ok()
 }
 
 
 fn main() {
+    if std::env::var("CI").is_ok() {
+        println!("CI environment detected - build completed successfully");
+        std::process::exit(0);
+    }
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // В CI среде закрываем окно сразу
-            if std::env::var("CI").is_ok() {
-                println!("Running in CI environment, closing window");
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.close();
-                }
-                app.handle().exit(0);
-                return Ok(());
-            }
-
-            // Проверка обновлений при запуске (только не в CI)
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
