@@ -111,34 +111,12 @@ fn find_game_automatically() -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
-fn is_ci_environment() -> bool {
-    std::env::var("CI").is_ok()
-}
-
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            if std::env::var("CI").is_ok() {
-                println!("CI environment detected - hiding window and exiting");
-
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-
-                let app_handle = app.handle().clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    app_handle.exit(0);
-                });
-
-                return Ok(());
-            }
-
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
@@ -162,7 +140,6 @@ fn main() {
             check_ru_installed,
             get_saved_path,
             find_game_automatically,
-            is_ci_environment,
 
             check_for_updates
         ])

@@ -93,9 +93,6 @@ jobs:
       
       - name: Install frontend dependencies
         run: npm ci
-      
-      - name: Build frontend
-        run: npm run build:frontend
 
       - name: Build and upload artifacts
         uses: tauri-apps/tauri-action@v0
