@@ -90,14 +90,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 fuse3
-          # Create FUSE device if it doesn't exist
-          sudo mknod -m 666 /dev/fuse c 10 229 || true
-          # Try to install linuxdeploy statically
-          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
-          ./linuxdeploy-x86_64.AppImage --appimage-extract
-          sudo cp squashfs-root/usr/bin/linuxdeploy /usr/local/bin/linuxdeploy-static || true
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
         
       - name: Install frontend dependencies
         run: npm ci
@@ -109,10 +102,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CI: true
-          APPIMAGE_EXTRACT_AND_RUN: 1
-          LINUXDEPLOY_OUTPUT_VERSION: ${{ steps.get_version.outputs.VERSION }}
-          LINUXDEPLOY_OUTPUT_APP_NAME: HytaleRU
-          TAURI_BUNDLE_LINUXDEPLOY_PATH: linuxdeploy-static
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}          
