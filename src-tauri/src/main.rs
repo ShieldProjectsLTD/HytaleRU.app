@@ -133,6 +133,12 @@ fn is_ci_environment() -> bool {
 
 
 fn main() {
+    // В CI среде завершаемся сразу, без создания приложения
+    if std::env::var("CI").is_ok() {
+        println!("Running in CI environment, exiting early");
+        return;
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
