@@ -9,6 +9,7 @@ use updater::check_for_updates;
 use hytaleru_lib::save_to_config;
 use hytaleru_lib::load_from_config;
 use hytaleru_lib::remove_config;
+use tauri::Manager;
 
 #[tauri::command]
 fn get_current_game_path() -> Result<String, String> {
@@ -133,29 +134,30 @@ fn is_ci_environment() -> bool {
 
 
 fn main() {
-    // В CI среде завершаемся сразу, без создания приложения
-    if std::env::var("CI").is_ok() {
-        println!("Running in CI environment, exiting early");
-        return;
-    }
-
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // Проверка обновлений при запуске (только не в CI)
-            if std::env::var("CI").is_err() {
-                let app_handle = app.handle().clone();
-
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
-                    if let Err(e) = check_for_updates(app_handle).await {
-                        eprintln!("Ошибка при проверке обновлений: {}", e);
-                    }
-                });
+            // В CI среде закрываем окно сразу
+            if std::env::var("CI").is_ok() {
+                println!("Running in CI environment, closing window");
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.close();
+                }
+                app.handle().exit(0);
+                return Ok(());
             }
+
+            // Проверка обновлений при запуске (только не в CI)
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+                if let Err(e) = check_for_updates(app_handle.clone()).await {
+                    eprintln!("Ошибка при проверке обновлений: {}", e);
+                }
+            });
 
             Ok(())
         })

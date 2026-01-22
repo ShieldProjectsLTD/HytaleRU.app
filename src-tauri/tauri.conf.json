@@ -15,6 +15,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Hytale RU",
         "width": 420,
         "minWidth": 420,
