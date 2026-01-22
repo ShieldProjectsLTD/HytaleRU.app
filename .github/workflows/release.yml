@@ -119,31 +119,86 @@ jobs:
         run: |
           # Get the current version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Version: $VERSION"
 
           # Get release info from GitHub API
           RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/ShieldProjectsLTD/HytaleRU/releases/tags/v${VERSION}")
+            "https://api.github.com/repos/ShieldProjectsLTD/HytaleRU.app/releases/tags/v${VERSION}")
+
+          # Debug: check if release info was retrieved
+          if [ -z "$RELEASE_INFO" ] || [ "$RELEASE_INFO" = "null" ]; then
+            echo "Error: Could not fetch release info"
+            exit 1
+          fi
+
+          echo "Release info retrieved successfully"
+
+          # Debug: show all assets
+          echo "All assets in release:"
+          echo "$RELEASE_INFO" | jq -r '.assets[].name' 2>/dev/null || echo "No assets found"
 
           # Function to get signature for asset
           get_signature() {
             local asset_name="$1"
+            if [ -z "$asset_name" ]; then
+              echo ""
+              return
+            fi
             local sig_name="${asset_name}.sig"
-            local sig_url=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$sig_name\") | .browser_download_url")
-            if [ -n "$sig_url" ]; then
-              curl -s "$sig_url"
+            local sig_url=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$sig_name\") | .browser_download_url" 2>/dev/null || echo "")
+            if [ -n "$sig_url" ] && [ "$sig_url" != "null" ]; then
+              echo "Fetching signature for $sig_name"
+              curl -s "$sig_url" 2>/dev/null || echo ""
             else
               echo ""
             fi
           }
 
-          # Get URLs and signatures
-          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains("nsis")) | select(.name | contains(".exe")) | .browser_download_url' | head -1)
-          DMG_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".dmg")) | .browser_download_url' | head -1)
-          DEB_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".deb")) | .browser_download_url' | head -1)
+          # Get URLs - with error handling (search for actual file names)
+          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains("setup.exe")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          MSI_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".msi")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          DMG_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".dmg")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          DEB_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".deb")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
 
-          NSIS_SIG=$(get_signature "$(basename "$NSIS_URL")")
-          DMG_SIG=$(get_signature "$(basename "$DMG_URL")")
-          DEB_SIG=$(get_signature "$(basename "$DEB_URL")")
+          echo "NSIS_URL: $NSIS_URL"
+          echo "MSI_URL: $MSI_URL"
+          echo "DMG_URL: $DMG_URL"
+          echo "DEB_URL: $DEB_URL"
+
+          # Get signatures
+          WINDOWS_URL="$NSIS_URL"
+          WINDOWS_SIG=""
+
+          if [ -z "$WINDOWS_URL" ] && [ -n "$MSI_URL" ]; then
+            WINDOWS_URL="$MSI_URL"
+          fi
+
+          NSIS_SIG=""
+          MSI_SIG=""
+          DMG_SIG=""
+          DEB_SIG=""
+
+          if [ -n "$NSIS_URL" ]; then
+            NSIS_SIG=$(get_signature "$(basename "$NSIS_URL" 2>/dev/null || echo "")")
+          fi
+          if [ -n "$MSI_URL" ]; then
+            MSI_SIG=$(get_signature "$(basename "$MSI_URL" 2>/dev/null || echo "")")
+          fi
+          if [ -n "$DMG_URL" ]; then
+            DMG_SIG=$(get_signature "$(basename "$DMG_URL" 2>/dev/null || echo "")")
+          fi
+          if [ -n "$DEB_URL" ]; then
+            DEB_SIG=$(get_signature "$(basename "$DEB_URL" 2>/dev/null || echo "")")
+          fi
+
+          # Use NSIS as primary Windows installer, MSI as fallback
+          if [ -n "$NSIS_SIG" ]; then
+            WINDOWS_SIG="$NSIS_SIG"
+            WINDOWS_URL="$NSIS_URL"
+          elif [ -n "$MSI_SIG" ]; then
+            WINDOWS_SIG="$MSI_SIG"
+            WINDOWS_URL="$MSI_URL"
+          fi
 
           # Create latest.json structure with signatures
           cat > latest.json << EOF
@@ -153,8 +208,8 @@ jobs:
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "windows-x86_64": {
-                "signature": "${NSIS_SIG}",
-                "url": "${NSIS_URL}"
+                "signature": "${WINDOWS_SIG}",
+                "url": "${WINDOWS_URL}"
               },
               "darwin-x86_64": {
                 "signature": "${DMG_SIG}",
@@ -171,6 +226,9 @@ jobs:
             }
           }
           EOF
+
+          echo "Generated latest.json:"
+          cat latest.json
 
           # Upload latest.json to release
           gh release upload ${{ needs.create-release.outputs.release_id }} latest.json \
