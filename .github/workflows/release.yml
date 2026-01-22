@@ -115,29 +115,65 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install tauri-latest-json
-        run: cargo install tauri-latest-json
-
-      - name: Generate latest.json
+      - name: Generate latest.json with signatures
         run: |
-          # Create private key file
-          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > private_key.pem
+          # Get the current version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
 
-          # Generate latest.json
-          tauri-latest-json \
-            --repo-owner ShieldProjectsLTD \
-            --repo-name HytaleRU \
-            --private-key-path private_key.pem \
-            --private-key-password ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Get release info from GitHub API
+          RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/ShieldProjectsLTD/HytaleRU/releases/tags/v${VERSION}")
+
+          # Function to get signature for asset
+          get_signature() {
+            local asset_name="$1"
+            local sig_name="${asset_name}.sig"
+            local sig_url=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$sig_name\") | .browser_download_url")
+            if [ -n "$sig_url" ]; then
+              curl -s "$sig_url"
+            else
+              echo ""
+            fi
+          }
+
+          # Get URLs and signatures
+          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains("nsis")) | select(.name | contains(".exe")) | .browser_download_url' | head -1)
+          DMG_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".dmg")) | .browser_download_url' | head -1)
+          DEB_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".deb")) | .browser_download_url' | head -1)
+
+          NSIS_SIG=$(get_signature "$(basename "$NSIS_URL")")
+          DMG_SIG=$(get_signature "$(basename "$DMG_URL")")
+          DEB_SIG=$(get_signature "$(basename "$DEB_URL")")
+
+          # Create latest.json structure with signatures
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "New version available",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${NSIS_SIG}",
+                "url": "${NSIS_URL}"
+              },
+              "darwin-x86_64": {
+                "signature": "${DMG_SIG}",
+                "url": "${DMG_URL}"
+              },
+              "darwin-aarch64": {
+                "signature": "${DMG_SIG}",
+                "url": "${DMG_URL}"
+              },
+              "linux-x86_64": {
+                "signature": "${DEB_SIG}",
+                "url": "${DEB_URL}"
+              }
+            }
+          }
+          EOF
 
           # Upload latest.json to release
           gh release upload ${{ needs.create-release.outputs.release_id }} latest.json \
             --clobber
-
-          # Cleanup
-          rm private_key.pem
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          
