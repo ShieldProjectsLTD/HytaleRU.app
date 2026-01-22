@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 
@@ -37,6 +38,13 @@ async function init() {
     console.error("Ошибка при загрузке сохраненного пути:", err);
     showToast("Путь не найден", "status-error");
     updateUIStatus();
+  }
+
+  try {
+    const window = getCurrentWindow();
+    await window.show();
+  } catch (err) {
+    console.error("Ошибка при отображении окна:", err);
   }
 }
 
