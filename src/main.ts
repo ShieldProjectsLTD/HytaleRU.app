@@ -12,13 +12,24 @@ let validPath: string | null = null;
 let ruInstalled = false;
 
 async function init() {
+  // Пропускаем инициализацию в CI среде
+  try {
+    const isCi = await invoke<boolean>("is_ci_environment");
+    if (isCi) {
+      console.log("Пропуск инициализации в CI среде");
+      return;
+    }
+  } catch (err) {
+    console.error("Ошибка при проверке CI среды:", err);
+  }
+
   try {
     const saved = await invoke<string | null>("get_saved_path");
     if (saved) {
       await validateAndSetPath(saved);
     } else {
       updateUIStatus();
-      
+
       // Пытаемся найти игру автоматически
       try {
         const found = await invoke<string | null>("find_game_automatically");

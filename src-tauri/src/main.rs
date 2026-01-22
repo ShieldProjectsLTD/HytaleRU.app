@@ -112,7 +112,7 @@ fn find_game_automatically() -> Result<Option<String>, String> {
             return Ok(Some(validated));
         }
     }
-    
+
     // Пытаемся найти игру автоматически
     match crate::gamepath::get_default_game_dir() {
         Ok(game_path) => {
@@ -122,6 +122,11 @@ fn find_game_automatically() -> Result<Option<String>, String> {
         }
         Err(_) => Ok(None)
     }
+}
+
+#[tauri::command]
+fn is_ci_environment() -> bool {
+    std::env::var("CI").is_ok()
 }
 
 
@@ -158,6 +163,7 @@ fn main() {
             check_ru_installed,
             get_saved_path,
             find_game_automatically,
+            is_ci_environment,
 
             check_for_updates
         ])
