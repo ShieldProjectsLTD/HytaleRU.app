@@ -135,7 +135,11 @@ jobs:
 
           # Debug: show all assets
           echo "All assets in release:"
-          echo "$RELEASE_INFO" | jq -r '.assets[].name' 2>/dev/null || echo "No assets found"
+          echo "$RELEASE_INFO" | jq -r '.assets[] | "\(.name) - \(.size) bytes"' 2>/dev/null || echo "No assets found"
+
+          # Check for .sig files specifically
+          echo "Signature files in release:"
+          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | endswith(".sig")) | .name' 2>/dev/null || echo "No .sig files found"
 
           # Function to get signature for asset
           get_signature() {
@@ -231,7 +235,7 @@ jobs:
           cat latest.json
 
           # Upload latest.json to release
-          gh release upload ${{ needs.create-release.outputs.release_id }} latest.json \
-            --clobber
+          RELEASE_TAG="v${VERSION}"
+          gh release upload "$RELEASE_TAG" latest.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          
