@@ -99,13 +99,14 @@ jobs:
 
       - name: Build Tauri app (Linux)
         if: matrix.platform == 'ubuntu-22.04'
-        run: xvfb-run -a --server-args="-screen 0 1024x768x24" npm run tauri build -- ${{ matrix.args }}
+        run: xvfb-run -a --server-args="-screen 0 1024x768x24" npm run tauri build -- --ci ${{ matrix.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CI: true
           DISPLAY: :99
+          TAURI_SKIP_DEVSERVER: true
 
       - name: Build Tauri app (macOS/Windows)
         if: matrix.platform != 'ubuntu-22.04'
@@ -115,6 +116,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CI: true
+          TAURI_SKIP_DEVSERVER: true
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
+          args: --ci ${{ matrix.args }}

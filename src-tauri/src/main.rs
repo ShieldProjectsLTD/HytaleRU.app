@@ -126,7 +126,9 @@ fn find_game_automatically() -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn is_ci_environment() -> bool {
-    std::env::var("CI").is_ok()
+    let is_ci = std::env::var("CI").is_ok();
+    println!("CI environment check: {}", is_ci);
+    is_ci
 }
 
 
