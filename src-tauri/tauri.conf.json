@@ -32,7 +32,7 @@
         "alwaysOnTop": false,
         "skipTaskbar": false,
         "center": true,
-        "visible": false,
+        "visible": true,
         "transparent": false
       }
     ],
