@@ -131,17 +131,19 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let app_handle = app.handle().clone();
-            
-            // Проверка обновлений при запуске
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                
-                if let Err(e) = check_for_updates(app_handle).await {
-                    eprintln!("Ошибка при проверке обновлений: {}", e);
-                }
-            });
-            
+            // Проверка обновлений при запуске (только не в CI)
+            if std::env::var("CI").is_err() {
+                let app_handle = app.handle().clone();
+
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+                    if let Err(e) = check_for_updates(app_handle).await {
+                        eprintln!("Ошибка при проверке обновлений: {}", e);
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
