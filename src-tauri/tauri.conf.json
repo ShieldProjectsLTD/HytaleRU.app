@@ -129,7 +129,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/ShieldProjectsLTD/HytaleRU.app/releases/latest/download/latest.json"
+        "https://github.com/ShieldProjectsLTD/HytaleRU/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAyQkM4RUM3NkQxODI2RkYKUldUL0poaHR4NDY4QW1HRnFVMEZXRkY0TkJGdHcxblV1QTQyL0s3RU5oYUpBZ25pMVBVSnQvQ2gK"
     }
