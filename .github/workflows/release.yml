@@ -107,6 +107,7 @@ jobs:
           CI: true
           DISPLAY: :99
           TAURI_SKIP_DEVSERVER: true
+          TAURI_HEADLESS: true
 
       - name: Build Tauri app (macOS/Windows)
         if: matrix.platform != 'ubuntu-22.04'
@@ -117,6 +118,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CI: true
           TAURI_SKIP_DEVSERVER: true
+          TAURI_HEADLESS: true
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --ci ${{ matrix.args }}
