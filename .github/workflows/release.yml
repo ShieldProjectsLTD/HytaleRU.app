@@ -176,43 +176,47 @@ jobs:
             local sig_name="${asset_name}.sig"
             local sig_url=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$sig_name\") | .browser_download_url" 2>/dev/null || echo "")
             if [ -n "$sig_url" ] && [ "$sig_url" != "null" ]; then
-              echo "Fetching signature for $sig_name from: $sig_url"
-              curl -s "$sig_url" 2>/dev/null || echo ""
+              echo "Fetching signature from: $sig_url" >&2  # Отладка в stderr
+              local sig_content=$(curl -s "$sig_url" 2>/dev/null || echo "")
+              echo "$sig_content"  # Возвращаем содержимое в stdout
             else
-              echo "No signature found for $sig_name"
+              echo "No signature found for $sig_name" >&2  # Отладка в stderr
               echo ""
             fi
           }
 
           # Get URLs - with error handling (search for actual file names)
-          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains("setup.exe")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
-          MSI_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".msi")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains("setup.exe") and ((.name | contains(".sig") | not) and (.name | contains(".zip") | not))) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          MSI_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".msi") and ((.name | contains(".sig") | not) and (.name | contains(".zip") | not))) | .browser_download_url' 2>/dev/null | head -1 || echo "")
           DMG_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".dmg")) | .browser_download_url' 2>/dev/null | head -1 || echo "")
+          TARGZ_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | contains(".app.tar.gz") and (.name | contains(".sig") | not)) | .browser_download_url' 2>/dev/null | head -1 || echo "")
 
           echo "NSIS_URL: $NSIS_URL"
           echo "MSI_URL: $MSI_URL"
           echo "DMG_URL: $DMG_URL"
+          echo "TARGZ_URL: $TARGZ_URL"
 
           # Get signatures (only for Windows and macOS)
           WINDOWS_URL="$NSIS_URL"
           WINDOWS_SIG=""
+          MACOS_URL="$TARGZ_URL"  # Use .app.tar.gz instead of .dmg for updater
+          MACOS_SIG=""
 
           if [ -z "$WINDOWS_URL" ] && [ -n "$MSI_URL" ]; then
             WINDOWS_URL="$MSI_URL"
           fi
 
-          NSIS_SIG=""
-          MSI_SIG=""
-          DMG_SIG=""
-
+          # Get Windows signature
           if [ -n "$NSIS_URL" ]; then
             NSIS_SIG=$(get_signature "$(basename "$NSIS_URL" 2>/dev/null || echo "")")
           fi
           if [ -n "$MSI_URL" ]; then
             MSI_SIG=$(get_signature "$(basename "$MSI_URL" 2>/dev/null || echo "")")
           fi
-          if [ -n "$DMG_URL" ]; then
-            DMG_SIG=$(get_signature "$(basename "$DMG_URL" 2>/dev/null || echo "")")
+
+          # Get macOS signature (from .app.tar.gz, not .dmg)
+          if [ -n "$TARGZ_URL" ]; then
+            MACOS_SIG=$(get_signature "$(basename "$TARGZ_URL" 2>/dev/null || echo "")")
           fi
 
           # Use NSIS as primary Windows installer, MSI as fallback
@@ -224,8 +228,8 @@ jobs:
             WINDOWS_URL="$MSI_URL"
           fi
 
-          echo "WINDOWS_SIG: ${WINDOWS_SIG:0:50}..." # Show first 50 chars
-          echo "DMG_SIG: ${DMG_SIG:0:50}..."
+          echo "WINDOWS_SIG length: ${#WINDOWS_SIG}"
+          echo "MACOS_SIG length: ${#MACOS_SIG}"
 
           # Create latest.json structure with signatures (Linux excluded)
           cat > latest.json << EOF
@@ -239,12 +243,12 @@ jobs:
                 "url": "${WINDOWS_URL}"
               },
               "darwin-x86_64": {
-                "signature": "${DMG_SIG}",
-                "url": "${DMG_URL}"
+                "signature": "${MACOS_SIG}",
+                "url": "${MACOS_URL}"
               },
               "darwin-aarch64": {
-                "signature": "${DMG_SIG}",
-                "url": "${DMG_URL}"
+                "signature": "${MACOS_SIG}",
+                "url": "${MACOS_URL}"
               }
             }
           }
@@ -253,7 +257,23 @@ jobs:
           echo "Generated latest.json:"
           cat latest.json
 
-          # Upload latest.json to latest release (not specific version)
+          # Upload to current version release (for archival)
+          echo "Uploading latest.json to release v${VERSION}"
           gh release upload "v${VERSION}" latest.json --clobber
+
+          # Also upload to 'latest' release (for updater)
+          echo "Uploading latest.json to 'latest' release"
+          if gh release view latest >/dev/null 2>&1; then
+            # Update existing 'latest' release
+            gh release upload latest latest.json --clobber
+          else
+            # Create new 'latest' release if it doesn't exist
+            echo "Creating 'latest' release (one-time setup)"
+            gh release create latest \
+              --title "Latest Release" \
+              --notes "This release always points to the most recent version. Download files from the actual versioned releases." \
+              --latest
+            gh release upload latest latest.json --clobber
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
