@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -8,7 +9,7 @@ const actionBtn = document.getElementById("action-btn") as HTMLButtonElement;
 const folderBtn = document.getElementById("folder-btn") as HTMLButtonElement;
 const gamePathTooltip = document.getElementById("gamepath-tooltip") as HTMLSpanElement;
 const gamePathIconBtn = document.getElementById("gamepath-icon-btn") as HTMLButtonElement;
-const toastContainer = document.getElementById("toast-container") as HTMLDivElement;
+const versionDisplay = document.getElementById("version-display") as HTMLDivElement;
 
 let validPath: string | null = null;
 let ruInstalled = false;
@@ -17,6 +18,11 @@ interface UpdateInfo {
   version: string;
   date?: string;
   body?: string;
+}
+
+interface PlatformInfo {
+  platform: string;
+  update_supported: boolean;
 }
 
 async function init() {
@@ -54,10 +60,18 @@ async function init() {
     console.error("Ошибка при отображении окна:", err);
   }
 
-  // Проверяем обновления после показа окна
+  // Отображаем версию приложения
+  try {
+    const version = await getVersion();
+    versionDisplay.textContent = `v${version}`;
+  } catch (err) {
+    console.error("Ошибка при получении версии:", err);
+    versionDisplay.textContent = "v?.?.?";
+  }
+
   setTimeout(() => {
     checkForUpdates();
-  }, 2000); // Ждём 2 секунды после запуска
+  }, 2000);
 }
 
 async function validateAndSetPath(path: string) {
@@ -100,23 +114,39 @@ function updateGamePathDisplay() {
 }
 
 function showToast(text: string, className: string) {
+  const existingToasts = document.querySelectorAll('.toast');
+  if (existingToasts.length >= 3) {
+    const oldestToast = existingToasts[0] as HTMLElement;
+    oldestToast.remove();
+  }
+
   const toast = document.createElement("div");
   toast.className = `toast ${className}`;
   toast.textContent = text;
 
-  toastContainer.appendChild(toast);
-  
+  document.body.appendChild(toast);
+
+  updateToastPositions();
+
   requestAnimationFrame(() => {
     toast.classList.add("show");
   });
-  
+
   setTimeout(() => {
     toast.classList.remove("show");
     toast.classList.add("hide");
     setTimeout(() => {
       toast.remove();
+      updateToastPositions();
     }, 300);
   }, 5000);
+}
+
+function updateToastPositions() {
+  const toasts = document.querySelectorAll('.toast');
+  toasts.forEach((toast, index) => {
+    (toast as HTMLElement).style.top = `${20 + (index * 60)}px`;
+  });
 }
 
 function updateUIStatus() {
@@ -186,65 +216,102 @@ async function checkForUpdates() {
     const updateInfo: UpdateInfo | null = await invoke("check_for_updates");
 
     if (updateInfo) {
-      showUpdateToast(updateInfo);
+      await showUpdateToast(updateInfo);
     }
   } catch (err) {
     console.error("Ошибка проверки обновлений:", err);
   }
 }
 
-function showUpdateToast(updateInfo: UpdateInfo) {
+async function showUpdateToast(updateInfo: UpdateInfo) {
+  const platformInfo: PlatformInfo = await invoke("get_platform_info");
+  const updateSupported = platformInfo.update_supported;
+
   const toast = document.createElement("div");
   toast.className = "update-toast";
-  toast.innerHTML = `
-    <div class="update-toast-content">
-      <div class="update-toast-text">
-        Обновиться до ${updateInfo.version}?
+
+  if (!updateSupported) {
+    toast.innerHTML = `
+      <div class="update-toast-content">
+        <div class="update-toast-text">
+          Новое обновление v${updateInfo.version}
+        </div>
+        <div class="update-toast-buttons">
+          <button class="btn-secondary update-btn-later">Позже</button>
+          <button class="btn-primary update-btn-open">Открыть</button>
+        </div>
       </div>
-      <div class="update-toast-buttons">
-        <button class="btn-secondary update-btn-later">Позже</button>
-        <button class="btn-success update-btn-yes">Да</button>
+    `;
+  } else {
+    toast.innerHTML = `
+      <div class="update-toast-content">
+        <div class="update-toast-text">
+          Обновиться до ${updateInfo.version}?
+        </div>
+        <div class="update-toast-buttons">
+          <button class="btn-secondary update-btn-later">Позже</button>
+          <button class="btn-success update-btn-yes">Да</button>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 
   document.body.appendChild(toast);
 
-  // Анимация появления
   setTimeout(() => {
     toast.classList.add("show");
   }, 100);
 
-  // Обработчики кнопок
   const laterBtn = toast.querySelector(".update-btn-later") as HTMLButtonElement;
-  const yesBtn = toast.querySelector(".update-btn-yes") as HTMLButtonElement;
 
   laterBtn.addEventListener("click", () => {
     hideUpdateToast(toast);
   });
 
-  yesBtn.addEventListener("click", async () => {
-    yesBtn.disabled = true;
-    yesBtn.textContent = "Устанавливаем...";
+  if (!updateSupported) {
+    const openBtn = toast.querySelector(".update-btn-open") as HTMLButtonElement;
 
-    try {
-      await invoke("install_update");
-      showToast("Обновление установлено! Перезапустите приложение.", "status-success");
+    openBtn.addEventListener("click", async () => {
+      openBtn.disabled = true;
+      openBtn.textContent = "Открываем...";
 
-      // Перезапуск приложения
-      setTimeout(async () => {
-        await relaunch();
-      }, 2000);
+      try {
+        await invoke("open_release_page", { version: updateInfo.version });
+        showToast("Страница релиза открыта в браузере", "status-success");
+      } catch (err) {
+        console.error("Ошибка открытия страницы релиза:", err);
+        showToast("Не удалось открыть страницу релиза", "status-error");
+        openBtn.disabled = false;
+        openBtn.textContent = "Открыть";
+      }
 
-    } catch (err) {
-      console.error("Ошибка установки обновления:", err);
-      showToast("Ошибка установки обновления", "status-error");
-      yesBtn.disabled = false;
-      yesBtn.textContent = "Да";
-    }
+      hideUpdateToast(toast);
+    });
+  } else {
+    const yesBtn = toast.querySelector(".update-btn-yes") as HTMLButtonElement;
 
-    hideUpdateToast(toast);
-  });
+    yesBtn.addEventListener("click", async () => {
+      yesBtn.disabled = true;
+      yesBtn.textContent = "Устанавливаем...";
+
+      try {
+        await invoke("install_update");
+        showToast("Обновление установлено! Перезапустите приложение.", "status-success");
+
+        setTimeout(async () => {
+          await relaunch();
+        }, 2000);
+
+      } catch (err) {
+        console.error("Ошибка установки обновления:", err);
+        showToast("Ошибка установки обновления", "status-error");
+        yesBtn.disabled = false;
+        yesBtn.textContent = "Да";
+      }
+
+      hideUpdateToast(toast);
+    });
+  }
 }
 
 function hideUpdateToast(toast: HTMLElement) {

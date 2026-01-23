@@ -5,11 +5,9 @@ mod updater;
 mod localization;
 mod gamepath;
 
-use updater::{check_for_updates, install_update};
 use hytaleru_lib::save_to_config;
 use hytaleru_lib::load_from_config;
 use hytaleru_lib::remove_config;
-use tauri::Manager;
 
 #[tauri::command]
 fn get_current_game_path() -> Result<String, String> {
@@ -116,18 +114,6 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
-                if let Err(e) = check_for_updates(app_handle.clone()).await {
-                    eprintln!("Ошибка при проверке обновлений: {}", e);
-                }
-            });
-
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             localization::install_ru_cmd,
             localization::restore_original_cmd,
@@ -141,8 +127,10 @@ fn main() {
             get_saved_path,
             find_game_automatically,
 
-            check_for_updates,
-            install_update
+             updater::get_platform_info,
+            updater::check_for_updates,
+            updater::install_update,
+            updater::open_release_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
