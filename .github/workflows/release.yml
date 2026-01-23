@@ -26,10 +26,8 @@ jobs:
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           
-          # Извлекаем секцию из CHANGELOG.md для текущей версии
           NOTES=$(awk "/## \[$VERSION\]/,/## \[/" changelog.md | sed '1d;$d')
           
-          # Если changelog пустой, используем дефолтное сообщение
           if [ -z "$NOTES" ]; then
             NOTES="Новая версия $VERSION
 
@@ -49,7 +47,6 @@ jobs:
           - Linux (x64)"
           fi
           
-          # Сохраняем в переменную окружения (экранируем для многострочного текста)
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -129,141 +126,6 @@ jobs:
           CI: true
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
-
-  generate-latestjson:
-    needs: build-tauri
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate latest.json with signatures
-        run: |
-          # Get the current version from tag
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Version: $VERSION"
-
-          # Wait a bit for assets to be fully uploaded
-          echo "Waiting for assets to be uploaded..."
-          sleep 10
-
-          # Get release info from GitHub API
-          RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/ShieldProjectsLTD/HytaleRU.app/releases/tags/v${VERSION}")
-
-          # Debug: check if release info was retrieved
-          if [ -z "$RELEASE_INFO" ] || [ "$RELEASE_INFO" = "null" ]; then
-            echo "Error: Could not fetch release info"
-            exit 1
-          fi
-
-          echo "Release info retrieved successfully"
-
-          # Debug: show all assets
-          echo "All assets in release:"
-          echo "$RELEASE_INFO" | jq -r '.assets[] | "\(.name) - \(.size) bytes"'
-
-          # Check for .sig files specifically
-          echo "Signature files in release:"
-          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | endswith(".sig")) | .name'
-
-          # Function to get signature for asset
-          get_signature() {
-            local asset_name="$1"
-            if [ -z "$asset_name" ]; then
-              echo ""
-              return
-            fi
-            local sig_name="${asset_name}.sig"
-            echo "Looking for signature: $sig_name" >&2
-            local sig_url=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$sig_name\") | .browser_download_url")
-            if [ -n "$sig_url" ] && [ "$sig_url" != "null" ]; then
-              echo "Fetching signature from: $sig_url" >&2
-              curl -s "$sig_url"
-            else
-              echo "No signature found for $sig_name" >&2
-              echo ""
-            fi
-          }
-
-          # Get URLs - with error handling
-          NSIS_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("setup\\.exe$")) | .browser_download_url' | head -1)
-          MSI_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("\\.msi$")) | .browser_download_url' | head -1)
-          TARGZ_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("app\\.tar\\.gz$")) | .browser_download_url' | head -1)
-
-          echo "NSIS_URL: $NSIS_URL"
-          echo "MSI_URL: $MSI_URL"
-          echo "TARGZ_URL: $TARGZ_URL"
-
-          # Get Windows signature
-          WINDOWS_URL=""
-          WINDOWS_SIG=""
-
-          if [ -n "$NSIS_URL" ] && [ "$NSIS_URL" != "null" ]; then
-            WINDOWS_URL="$NSIS_URL"
-            WINDOWS_SIG=$(get_signature "$(basename "$NSIS_URL")")
-          elif [ -n "$MSI_URL" ] && [ "$MSI_URL" != "null" ]; then
-            WINDOWS_URL="$MSI_URL"
-            WINDOWS_SIG=$(get_signature "$(basename "$MSI_URL")")
-          fi
-
-          # Get macOS signature
-          MACOS_URL=""
-          MACOS_SIG=""
-
-          if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
-            MACOS_URL="$TARGZ_URL"
-            MACOS_SIG=$(get_signature "$(basename "$TARGZ_URL")")
-          fi
-
-          echo "WINDOWS_SIG length: ${#WINDOWS_SIG}"
-          echo "MACOS_SIG length: ${#MACOS_SIG}"
-
-          # Validate that we have data
-          if [ -z "$WINDOWS_URL" ] || [ -z "$MACOS_URL" ]; then
-            echo "Error: Missing URLs"
-            echo "WINDOWS_URL: $WINDOWS_URL"
-            echo "MACOS_URL: $MACOS_URL"
-            exit 1
-          fi
-
-          if [ -z "$WINDOWS_SIG" ] || [ -z "$MACOS_SIG" ]; then
-            echo "Warning: Missing signatures"
-            echo "WINDOWS_SIG empty: $([ -z "$WINDOWS_SIG" ] && echo 'YES' || echo 'NO')"
-            echo "MACOS_SIG empty: $([ -z "$MACOS_SIG" ] && echo 'YES' || echo 'NO')"
-          fi
-
-          # Create latest.json structure with signatures (Linux excluded)
-          cat > latest.json << EOF
-          {
-            "version": "${VERSION}",
-            "notes": "New version available",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "${WINDOWS_SIG}",
-                "url": "${WINDOWS_URL}"
-              },
-              "darwin-x86_64": {
-                "signature": "${MACOS_SIG}",
-                "url": "${MACOS_URL}"
-              },
-              "darwin-aarch64": {
-                "signature": "${MACOS_SIG}",
-                "url": "${MACOS_URL}"
-              }
-            }
-          }
-          EOF
-
-          echo "Generated latest.json:"
-          cat latest.json
-
-          # Upload to current version release only
-          echo "Uploading latest.json to release v${VERSION}"
-          gh release upload "v${VERSION}" latest.json --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
