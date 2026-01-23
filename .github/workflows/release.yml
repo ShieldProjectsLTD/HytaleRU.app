@@ -234,8 +234,7 @@ jobs:
           echo "Generated latest.json:"
           cat latest.json
 
-          # Upload latest.json to release
-          RELEASE_TAG="v${VERSION}"
-          gh release upload "$RELEASE_TAG" latest.json --clobber
+          # Upload latest.json to latest release (not specific version)
+          gh release upload "v${VERSION}" latest.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          
