@@ -82,10 +82,13 @@ jobs:
         include:
           - platform: 'ubuntu-latest'
             args: ''
+            create_updater: 'false'
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
+            create_updater: 'true'
           - platform: 'windows-latest'
             args: ''
+            create_updater: 'true'
 
     runs-on: ${{ matrix.platform }}
     
@@ -112,12 +115,17 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Temporarily disable updater artifacts for Linux
+        if: matrix.create_updater == 'false'
+        run: |
+          node -e "const fs=require('fs'); const config=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8')); delete config.bundle.createUpdaterArtifacts; fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2));"
+
       - name: Build and upload artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ matrix.create_updater == 'true' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ matrix.create_updater == 'true' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
           CI: true
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
