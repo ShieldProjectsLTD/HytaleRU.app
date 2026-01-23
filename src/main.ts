@@ -13,6 +13,8 @@ const versionDisplay = document.getElementById("version-display") as HTMLDivElem
 
 let validPath: string | null = null;
 let ruInstalled = false;
+let appVersion: string | null = null;
+let langVersion: string | null = null;
 
 interface UpdateInfo {
   version: string;
@@ -23,6 +25,14 @@ interface UpdateInfo {
 interface PlatformInfo {
   platform: string;
   update_supported: boolean;
+}
+
+interface LocalizationUpdateInfo {
+  current_version: string | null;
+  latest_version: string;
+  update_available: boolean;
+  download_url: string | null;
+  changelog: string | null;
 }
 
 async function init() {
@@ -60,17 +70,17 @@ async function init() {
     console.error("Ошибка при отображении окна:", err);
   }
 
-  // Отображаем версию приложения
   try {
-    const version = await getVersion();
-    versionDisplay.textContent = `v${version}`;
+    appVersion = await getVersion();
+    updateVersionDisplay();
   } catch (err) {
     console.error("Ошибка при получении версии:", err);
-    versionDisplay.textContent = "v?.?.?";
+    updateVersionDisplay();
   }
 
   setTimeout(() => {
     checkForUpdates();
+    checkLocalizationUpdates();
   }, 2000);
 }
 
@@ -221,6 +231,32 @@ async function checkForUpdates() {
   } catch (err) {
     console.error("Ошибка проверки обновлений:", err);
   }
+}
+
+async function checkLocalizationUpdates() {
+  try {
+    const info: LocalizationUpdateInfo | null = await invoke("check_localization_updates");
+    langVersion = info?.current_version ?? null;
+    updateVersionDisplay();
+    if (!info || !info.update_available) {
+      return;
+    }
+
+    const updated = await invoke<boolean>("auto_update_localization");
+    if (updated) {
+      langVersion = info.latest_version;
+      updateVersionDisplay();
+      showToast("Локализация обновлена", "status-success");
+    }
+  } catch (err) {
+    console.error("Ошибка проверки локализации:", err);
+  }
+}
+
+function updateVersionDisplay() {
+  const app = appVersion ? `v${appVersion}` : "v?.?.?";
+  const lang = langVersion || "нет";
+  versionDisplay.textContent = `${app} | langRu: ${lang}`;
 }
 
 async function showUpdateToast(updateInfo: UpdateInfo) {

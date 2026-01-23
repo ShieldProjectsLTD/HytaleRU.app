@@ -1,7 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::path::PathBuf;
 use std::fs;
-mod updater;
+#[allow(non_snake_case)]
+mod APIs;
 mod localization;
 mod gamepath;
 
@@ -127,10 +128,14 @@ fn main() {
             get_saved_path,
             find_game_automatically,
 
-             updater::get_platform_info,
-            updater::check_for_updates,
-            updater::install_update,
-            updater::open_release_page
+            APIs::app_updater::get_platform_info,
+            APIs::app_updater::check_for_updates,
+            APIs::app_updater::install_update,
+            APIs::app_updater::open_release_page,
+
+            APIs::lang_updater::check_localization_updates,
+            APIs::lang_updater::auto_update_localization,
+            APIs::lang_updater::download_localization_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
