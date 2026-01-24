@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 export type ValidatePathResult =
-  | { ok: true; validPath: string; ruInstalled: boolean; warning?: "check_failed" }
+  | { ok: true; validPath: string; ruInstalled: boolean }
   | { ok: false; reason: "not_found" };
 
 export function cutToHytaleRoot(path: string): string {
@@ -47,7 +47,7 @@ export async function validatePath(root: string): Promise<ValidatePathResult> {
 			return { ok: true, validPath, ruInstalled };
 		} catch (error) {
 			console.error("Error checking RU lang on game dir: ", error);
-			return { ok: true, validPath, ruInstalled: false, warning: "check_failed" };
+			return { ok: true, validPath, ruInstalled: false };
 		}
 	} catch (error) {
 		return { ok: false, reason: "not_found" };

@@ -63,14 +63,15 @@ async function validateAndSetPath(path: string) {
   const root = cutToHytaleRoot(path);
 
 	const result = await validatePath(root);
+
   if (result.ok) {
 		validPath = result.validPath;
 		ruInstalled = result.ruInstalled;
-		if (result.warning === "check_failed") {
-			showToast("Не удалось проверить RU язык", "status-error");
-		} else if (ruInstalled) {
+		if (ruInstalled) {
+			ruInstalled = result.ruInstalled;
 			showToast("Русский язык установлен", "status-success");
 		} else {
+			ruInstalled = result.ruInstalled;
 			showToast("Русский язык не установлен", "status-neutral");
 		}
 	} else {
@@ -97,11 +98,15 @@ function updateUIStatus() {
     actionBtn.disabled = true;
     actionBtn.textContent = "Выберите папку Hytale";
     folderBtn.style.opacity = "1.0";
-  } else {
-    actionBtn.disabled = false;
-    actionBtn.textContent = ruInstalled ? "Удалить русский язык" : "Установить русский язык";
-    folderBtn.style.opacity = "0.4";
-  }
+  } else if (ruInstalled === null) {
+		actionBtn.disabled = true;
+		actionBtn.textContent = "Проверка RU языка не удалась";
+		folderBtn.style.opacity = "0.4";
+	} else {
+		actionBtn.disabled = false;
+		actionBtn.textContent = ruInstalled ? "Удалить русский язык" : "Установить русский язык";
+		folderBtn.style.opacity = "0.4";
+	}
 }
 
 async function refreshLocalization() {
