@@ -29,12 +29,14 @@ export async function selectGamePath(): Promise<string | null> {
   return null;
 }
 
-export async function openGamePath(path: string): Promise<void> {
+export async function openGamePath(path: string): Promise<boolean> {
   try {
     await openPath(path);
+		return true;
   } catch (error) {
     console.error("Ошибка при открытии проводника:", error);
-  }
+		return false;
+	}
 }
 
 export async function validatePath(root: string): Promise<ValidatePathResult> {

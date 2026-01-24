@@ -116,17 +116,14 @@ async function refreshLocalization() {
   }
 }
 
-gamePathIconBtn.addEventListener("click", () => {
-  if (!validPath) {
-		return;
-	}
-  openGamePath(validPath);
+gamePathIconBtn.addEventListener("click", async () => {
+  if (!validPath) return;
+  const ok = await openGamePath(validPath);
+	if (!ok) showToast("Не удалось открыть проводник", "status-error")
 });
 folderBtn.addEventListener("click", async () => {
   const selected = await selectGamePath();
-	if (!selected) {
-		return;
-	}
+	if (!selected) return;
 	await validateAndSetPath(selected);
 });
 actionBtn.addEventListener("click", async () => {
