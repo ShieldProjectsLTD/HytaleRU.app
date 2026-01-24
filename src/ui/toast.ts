@@ -82,7 +82,7 @@ function renderUpdateToast(object: RenderObject) {
 	object.toast.innerHTML = `
 			<div class="update-toast-content">
 				<div class="update-toast-text">
-					Обновиться до ${object.message}?
+					${object.message}?
 				</div>
 				<div class="update-toast-buttons">
 					${object.buttons

@@ -9,13 +9,20 @@ export async function checkLocalizationUpdates(): Promise<LocalizationUpdateResu
   try {
     const info: LocalizationUpdateInfo | null = await invoke("check_localization_updates");
     const currentVersion = info?.current_version ?? null;
+
     if (!info || !info.update_available) {
       return { ok: true, langVersion: currentVersion, updateAvailable: false, updated: false };
     }
 
-    const updated = await invoke<boolean>("auto_update_localization");
-    const langVersion = updated ? info.latest_version : currentVersion;
-    return { ok: true, langVersion, updateAvailable: true, updated };
+		try {
+			const updated = await invoke<boolean>("auto_update_localization");
+			const langVersion = updated ? info.latest_version : currentVersion;
+			return { ok: true, langVersion, updateAvailable: true, updated };
+		} catch (error) {
+			console.error("Ошибка авто‑обновления локализации:", error);
+			return { ok: true, langVersion: currentVersion, updateAvailable: true, updated: false};
+		}
+
   } catch (error) {
     console.error("Ошибка проверки локализации:", error);
     return { ok: false };
